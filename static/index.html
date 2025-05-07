@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Food Estimator</title>
+</head>
+<body>
+  <h2>Upload Food Image</h2>
+  <form id="uploadForm">
+    <input type="file" name="image" id="imageInput" accept="image/*" required>
+    <button type="submit">Submit</button>
+  </form>
+  <div id="result"></div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      const imageFile = document.getElementById('imageInput').files[0];
+      formData.append('image', imageFile);
+
+      const response = await fetch('http://localhost:5000/predict', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      resultDiv.innerHTML = `<p><strong>Estimated Quantity:</strong> ${data.estimated_quantity}</p>
+                             <p><strong>People Served:</strong> ${data.people_served}</p>`;
+    });
+  </script>
+</body>
+</html>
