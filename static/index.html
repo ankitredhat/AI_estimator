@@ -25,7 +25,7 @@
       padding: 2rem;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
+      max-width: 500px;
       width: 100%;
       text-align: center;
     }
@@ -33,10 +33,24 @@
     h2 {
       margin-bottom: 1rem;
       color: #333;
+      font-weight: 600;
     }
 
-    input[type="file"] {
-      margin: 1rem 0;
+    label {
+      margin-top: 1rem;
+      display: block;
+      font-weight: 600;
+      color: #555;
+    }
+
+    input[type="file"], select, input[type="number"] {
+      width: 100%;
+      padding: 0.8rem;
+      margin: 0.5rem 0;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 1rem;
+      box-sizing: border-box;
     }
 
     button {
@@ -47,7 +61,8 @@
       border-radius: 6px;
       cursor: pointer;
       font-size: 1rem;
-      transition: background-color 0.3s;
+      transition: background-color 0.3s ease-in-out;
+      margin-top: 1rem;
     }
 
     button:hover {
@@ -56,24 +71,56 @@
 
     #result {
       margin-top: 1.5rem;
-      font-size: 1rem;
+      font-size: 1.1rem;
       color: #444;
+      padding: 1rem;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 
     #result p {
       margin: 0.5rem 0;
     }
+
+    .error {
+      color: red;
+    }
+
+    .success {
+      color: green;
+    }
+
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h2>Upload Food Image</h2>
+    <h2>AI Food Estimator</h2>
     <form id="uploadForm">
-      <input type="file" name="image" id="imageInput" accept="image/*" required>
-      <br>
-      <button type="submit">Submit</button>
+      <label for="container">Select Container:</label>
+      <select id="container" required>
+        <option value="">--Select Container--</option>
+        <option value="Tawa">Tawa</option>
+        <option value="Kadhai">Kadhai</option>
+        <option value="Patila">Patila</option>
+        <option value="Dekchi">Dekchi</option>
+        <option value="Handi">Handi</option>
+        <option value="Drum">Drum</option>
+        <option value="Tub">Tub</option>
+        <option value="Thali">Thali</option>
+        <option value="Katori">Katori</option>
+      </select>
+
+      <label for="length">Length (cm):</label>
+      <input type="number" id="length" required>
+
+      <label for="breadth">Breadth (cm):</label>
+      <input type="number" id="breadth" required>
+
+      <button type="submit">Estimate</button>
     </form>
+
     <div id="result"></div>
   </div>
 
@@ -83,25 +130,39 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData();
-      const imageFile = document.getElementById('imageInput').files[0];
-      formData.append('image', imageFile);
+
+      const container = document.getElementById('container').value;
+      const length = document.getElementById('length').value;
+      const breadth = document.getElementById('breadth').value;
+
+      if (!container || !length || !breadth) {
+        resultDiv.innerHTML = `<p class="error">❌ Please fill all fields.</p>`;
+        return;
+      }
 
       resultDiv.innerHTML = "⏳ Estimating...";
 
       try {
         const response = await fetch('https://ai-estimator.onrender.com/predict', {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_type: container, length, breadth })
         });
 
         const data = await response.json();
-        resultDiv.innerHTML = `
-          <p><strong>Estimated Quantity:</strong> ${data.estimated_quantity}</p>
-          <p><strong>People Served:</strong> ${data.people_served}</p>
-        `;
+
+        if (data.error) {
+          resultDiv.innerHTML = `<p class="error">❌ ${data.error}</p>`;
+        } else {
+          resultDiv.innerHTML = `
+            <p><strong>Container:</strong> ${data.container}</p>
+            <p><strong>Area:</strong> ${data.area} cm²</p>
+            <p><strong>Estimated Quantity:</strong> ${data.estimated_quantity}</p>
+            <p><strong>People Served:</strong> ${data.people_served}</p>
+          `;
+        }
       } catch (error) {
-        resultDiv.innerHTML = `<p style="color:red;">❌ Error uploading image.</p>`;
+        resultDiv.innerHTML = `<p class="error">❌ Error uploading image.</p>`;
       }
     });
   </script>
