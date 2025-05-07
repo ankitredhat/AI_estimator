@@ -36,21 +36,17 @@
       font-weight: 600;
     }
 
-    label {
-      margin-top: 1rem;
+    label, select, input, button {
       display: block;
-      font-weight: 600;
-      color: #555;
+      width: 100%;
+      margin: 0.5rem 0;
+      font-size: 1rem;
     }
 
-    input[type="file"], select, input[type="number"], select#unit {
-      width: 100%;
+    input[type="number"], select {
       padding: 0.8rem;
-      margin: 0.5rem 0;
       border-radius: 8px;
       border: 1px solid #ddd;
-      font-size: 1rem;
-      box-sizing: border-box;
     }
 
     button {
@@ -60,8 +56,7 @@
       padding: 0.75rem 1.5rem;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 1rem;
-      transition: background-color 0.3s ease-in-out;
+      transition: background-color 0.3s;
       margin-top: 1rem;
     }
 
@@ -71,24 +66,15 @@
 
     #result {
       margin-top: 1.5rem;
-      font-size: 1.1rem;
-      color: #444;
       padding: 1rem;
       background-color: #f9f9f9;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      font-size: 1rem;
     }
 
-    #result p {
-      margin: 0.5rem 0;
-    }
-
-    .error {
-      color: red;
-    }
-
-    .success {
-      color: green;
+    .lang-toggle {
+      margin-bottom: 1rem;
+      text-align: right;
     }
 
   </style>
@@ -96,9 +82,17 @@
 <body>
 
   <div class="container">
-    <h2>AI Food Estimator</h2>
+    <div class="lang-toggle">
+      <label for="lang">🌐 Language:</label>
+      <select id="lang">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+      </select>
+    </div>
+
+    <h2 id="title">AI Food Estimator</h2>
     <form id="uploadForm">
-      <label for="container">Select Container:</label>
+      <label id="containerLabel" for="container">Select Container:</label>
       <select id="container" required>
         <option value="">--Select Container--</option>
         <option value="Tawa">Tawa</option>
@@ -112,68 +106,88 @@
         <option value="Katori">Katori</option>
       </select>
 
-      <label for="length">Length (in cm):</label>
-      <input type="number" id="length" required>
+      <label id="diameterLabel" for="diameter">Diameter (cm):</label>
+      <input type="number" id="diameter" required>
 
-      <label for="breadth">Breadth (in cm):</label>
-      <input type="number" id="breadth" required>
+      <label id="heightLabel" for="height">Height (cm):</label>
+      <input type="number" id="height" required>
 
-      <label for="unit">Unit:</label>
-      <select id="unit">
-        <option value="cm">Centimeters</option>
-        <option value="m">Meters</option>
-      </select>
-
-      <button type="submit">Calculate</button>
+      <button type="submit" id="submitBtn">Estimate</button>
     </form>
 
     <div id="result"></div>
   </div>
 
   <script>
+    const translations = {
+      en: {
+        title: "AI Food Estimator",
+        containerLabel: "Select Container:",
+        diameterLabel: "Diameter (cm):",
+        heightLabel: "Height (cm):",
+        submitBtn: "Estimate",
+      },
+      hi: {
+        title: "एआई भोजन अनुमानक",
+        containerLabel: "बर्तन चुनें:",
+        diameterLabel: "व्यास (सेमी):",
+        heightLabel: "ऊंचाई (सेमी):",
+        submitBtn: "अनुमान लगाएं",
+      }
+    };
+
+    const langSelect = document.getElementById("lang");
+
+    langSelect.addEventListener("change", () => {
+      const lang = langSelect.value;
+      const t = translations[lang];
+      document.getElementById("title").innerText = t.title;
+      document.getElementById("containerLabel").innerText = t.containerLabel;
+      document.getElementById("diameterLabel").innerText = t.diameterLabel;
+      document.getElementById("heightLabel").innerText = t.heightLabel;
+      document.getElementById("submitBtn").innerText = t.submitBtn;
+    });
+
     const form = document.getElementById('uploadForm');
     const resultDiv = document.getElementById('result');
 
-    form.onsubmit = async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const container = document.getElementById('container').value;
-      const length = parseFloat(document.getElementById('length').value);
-      const breadth = parseFloat(document.getElementById('breadth').value);
-      const unit = document.getElementById('unit').value;
+      const diameter = document.getElementById('diameter').value;
+      const height = document.getElementById('height').value;
 
-      if (!container || isNaN(length) || isNaN(breadth)) {
-        resultDiv.innerHTML = '<p class="error">Please fill out all fields correctly.</p>';
+      if (!container || !diameter || !height) {
+        resultDiv.innerHTML = `<p style="color:red;">❌ Please fill all fields.</p>`;
         return;
       }
 
-      const data = { container_type: container, length, breadth, unit };
+      resultDiv.innerHTML = "⏳ Estimating...";
 
       try {
         const response = await fetch('/predict', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_type: container, diameter, height })
         });
 
-        const result = await response.json();
-        if (response.ok) {
-          resultDiv.innerHTML = `
-            <p class="success">Estimated Quantity: ${result.estimated_quantity}</p>
-            <p>People Served: ${result.people_served}</p>
-            <p>Container Type: ${result.container}</p>
-            <p>Area/Volume: ${result.area_or_volume.toFixed(2)} cm² (or cm³)</p>
-          `;
+        const data = await response.json();
+
+        if (data.error) {
+          resultDiv.innerHTML = `<p style="color:red;">❌ ${data.error}</p>`;
         } else {
-          resultDiv.innerHTML = `<p class="error">${result.error}</p>`;
+          resultDiv.innerHTML = `
+            <p><strong>Container:</strong> ${data.container}</p>
+            <p><strong>Volume:</strong> ${data.volume_cm3} cm³</p>
+            <p><strong>Estimated Quantity:</strong> ${data.estimated_quantity}</p>
+            <p><strong>People Served:</strong> ${data.people_served}</p>
+          `;
         }
       } catch (error) {
-        resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        resultDiv.innerHTML = `<p style="color:red;">❌ Server error.</p>`;
       }
-    };
+    });
   </script>
-
 </body>
 </html>
